@@ -18,6 +18,17 @@ class GearbestParser:
 
     def load(self, url, currency=None):
         """Load an url an get an GearbestItem for that"""
+        return GearbestItem(url, self._get_meta_data, self._converter, currency)
+
+    def update_conversion_list(self):
+        """Load the conversion array from Gearbest"""
+        url = "https://order.gearbest.com/data-cache/currency_huilv.js?v=20171102105238"
+        page = self._load_url(url)
+        search_object = re.search("({[^}]*})", page, re.M|re.I)
+        if search_object:
+            self._converter.set_conversion_list(json.loads(search_object.group(1)))
+
+    def _get_meta_data(self, url):
         page = self._load_url(url)
         soup = BeautifulSoup(page, 'lxml')
         meta_data = {}
@@ -27,15 +38,7 @@ class GearbestParser:
                 name = meta.get('property', None)
             content = meta.get('content', None)
             meta_data[name] = content
-        return GearbestItem(meta_data, self._converter, currency)
-
-    def update_conversion_list(self):
-        """Load the conversion array from Gearbest"""
-        url = "https://order.gearbest.com/data-cache/currency_huilv.js?v=20171102105238"
-        page = self._load_url(url)
-        search_object = re.search("({[^}]*})", page, re.M|re.I)
-        if search_object:
-            self._converter.set_conversion_list(json.loads(search_object.group(1)))
+        return meta_data
 
     def _load_url(self, url):
         req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
@@ -63,19 +66,34 @@ class CurrencyConverter:
 
 class GearbestItem:
     """Representation of an item at Gearbest"""
-    def __init__(self, meta_data, converter, currency=None):
+    def __init__(self, url, loader, converter, currency=None):
+        self._name = None
+        self._description = None
+        self._image = None
+        self._price = None
+        self._currency = None
+        self._url = url
+        self._override_currency = currency
+        self._loader = loader
+        self._converter = converter
+
+        self.update()
+
+    def update(self):
+        """Reload properties"""
+        meta_data = self._loader(self._url)
         self._name = meta_data.get("og:title", None)
         self._description = meta_data.get("og:description", None)
         self._image = meta_data.get("og:image", None)
         self._price = meta_data.get("og:price:amount", None)
         self._currency = meta_data.get("og:price:currency", None)
 
-        if currency is not None and \
-           currency is not self._currency and \
-           converter.is_supported_currency(currency):
-            self._price = "{0:.2f}".format(converter.convert(self._price, self._currency, currency))
-            self._currency = currency
-
+        if self._override_currency is not None and \
+           self._override_currency is not self._currency and \
+           self._converter.is_supported_currency(self._override_currency):
+            self._price = "{0:.2f}".format(
+                self._converter.convert(self._price, self._currency, self._override_currency))
+            self._currency = self._override_currency
 
     @property
     def name(self):
@@ -101,3 +119,8 @@ class GearbestItem:
     def currency(self):
         """The currency of this item."""
         return self._currency
+
+    @property
+    def url(self):
+        """The url of this item."""
+        return self._url
