@@ -40,7 +40,8 @@ class GearbestParser:
             meta_data[name] = content
         return meta_data
 
-    def _load_url(self, url):
+    @classmethod
+    def _load_url(cls, url):
         req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
         page = urlopen(req).read().decode('utf-8')
         return page
