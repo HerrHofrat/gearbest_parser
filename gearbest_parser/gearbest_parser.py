@@ -82,7 +82,12 @@ class GearbestItem:
     def update(self):
         """Reload properties"""
         meta_data = self._loader(self._url)
+
         self._name = meta_data.get("og:title", None)
+        search_object = re.search(r"^(.*) -\$[0-9.]* Online Shopping\| GearBest\.com",
+                                  self._name, re.M|re.I)
+        if search_object:
+            self._name = search_object.group(1)
         self._description = meta_data.get("og:description", None)
         self._image = meta_data.get("og:image", None)
         self._price = meta_data.get("og:price:amount", None)
