@@ -18,7 +18,10 @@ class GearbestParser:
 
     def load(self, url, currency=None):
         """Load an url an get an GearbestItem for that"""
-        return GearbestItem(url, self._get_meta_data, self._converter, currency)
+        search_object = re.match(r"^(https?:\/\/(www\.)?gearbest\.com\/).*$",
+                                  url, re.M|re.I)
+        if search_object:
+            return GearbestItem(url, self._get_meta_data, self._converter, currency)
 
     def update_conversion_list(self):
         """Load the conversion array from Gearbest"""
