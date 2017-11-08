@@ -1,14 +1,11 @@
 """Module to parse gearbest site"""
 
-import logging
 import re
 import json
+from datetime import datetime
 
 from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
-
-
-_LOGGER = logging.getLogger(__name__)
 
 class GearbestParser:
     """Parses the og data of an Gearbest item"""
@@ -16,16 +13,22 @@ class GearbestParser:
         self._converter = CurrencyConverter()
         self.update_conversion_list()
 
+    @staticmethod
+    def is_valid_url(url):
+        """Check if the provided url is a valid gearbest url"""
+        search_object = re.match(r"^(https?:\/\/(www\.)?gearbest\.com\/).*$",
+                                 url, re.M|re.I)
+        return search_object is not None
+
     def load(self, url, currency=None):
         """Load an url an get an GearbestItem for that"""
-        search_object = re.match(r"^(https?:\/\/(www\.)?gearbest\.com\/).*$",
-                                  url, re.M|re.I)
-        if search_object:
+        if GearbestParser.is_valid_url(url):
             return GearbestItem(url, self._get_meta_data, self._converter, currency)
 
     def update_conversion_list(self):
         """Load the conversion array from Gearbest"""
-        url = "https://order.gearbest.com/data-cache/currency_huilv.js?v=20171102105238"
+        url = "https://order.gearbest.com/data-cache/currency_huilv.js?v=" \
+              "{:%Y%m%d%H%M%S}".format(datetime.now())
         page = self._load_url(url)
         search_object = re.search("({[^}]*})", page, re.M|re.I)
         if search_object:
@@ -33,7 +36,7 @@ class GearbestParser:
 
     def _get_meta_data(self, url):
         page = self._load_url(url)
-        soup = BeautifulSoup(page, 'lxml')
+        soup = BeautifulSoup(page, 'html.parser')
         meta_data = {}
         for meta in soup.findAll("meta"):
             name = meta.get('name', None)
@@ -81,17 +84,15 @@ class GearbestItem:
         self._loader = loader
         self._converter = converter
 
-        self.update()
-
     def update(self):
         """Reload properties"""
         meta_data = self._loader(self._url)
 
         self._name = meta_data.get("og:title", None)
-        search_object = re.search(r"^(.*) -\$[0-9.]* Online Shopping\| GearBest\.com",
+        search_object = re.search(r"^(.*)( ?)-\$[0-9.]* Online Shopping\| GearBest\.com",
                                   self._name, re.M|re.I)
         if search_object:
-            self._name = search_object.group(1)
+            self._name = search_object.group(1).strip()
         self._description = meta_data.get("og:description", None)
         self._image = meta_data.get("og:image", None)
         self._price = meta_data.get("og:price:amount", None)
