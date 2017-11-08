@@ -1,5 +1,6 @@
 __pycache__/
 build/
+gearbest_parser.egg-info/
 *.py[cod]
 *$py.class
 dist
