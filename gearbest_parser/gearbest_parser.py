@@ -20,10 +20,15 @@ class GearbestParser:
                                  url, re.M|re.I)
         return search_object is not None
 
-    def load(self, url, currency=None):
+    def load(self, item_id=None, url=None, currency=None):
         """Load an url an get an GearbestItem for that"""
-        if GearbestParser.is_valid_url(url):
+        if item_id is not None:
+            url = "https://www.gearbest.com/q/pp_{}.html".format(item_id)
+
+        if url is not None and GearbestParser.is_valid_url(url):
             return GearbestItem(url, self._get_meta_data, self._converter, currency)
+        else:
+            return None
 
     def update_conversion_list(self):
         """Load the conversion array from Gearbest"""
