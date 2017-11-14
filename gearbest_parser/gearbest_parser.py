@@ -10,8 +10,7 @@ from bs4 import BeautifulSoup
 class GearbestParser:
     """Parses the og data of an Gearbest item"""
     def __init__(self):
-        self._converter = CurrencyConverter()
-        self.update_conversion_list()
+        self._converter = None
 
     @staticmethod
     def is_valid_url(url):
@@ -19,6 +18,10 @@ class GearbestParser:
         search_object = re.match(r"^(https?:\/\/(www\.)?gearbest\.com\/).*$",
                                  url, re.M|re.I)
         return search_object is not None
+
+    def set_currency_converter(self, converter):
+        """Set a currency converter instance"""
+        self._converter = converter
 
     def load(self, item_id=None, url=None, currency=None):
         """Load an url an get an GearbestItem for that"""
@@ -30,17 +33,9 @@ class GearbestParser:
         else:
             return None
 
-    def update_conversion_list(self):
-        """Load the conversion array from Gearbest"""
-        url = "https://order.gearbest.com/data-cache/currency_huilv.js?v=" \
-              "{:%Y%m%d%H%M%S}".format(datetime.now())
-        page = self._load_url(url)
-        search_object = re.search("({[^}]*})", page, re.M|re.I)
-        if search_object:
-            self._converter.set_conversion_list(json.loads(search_object.group(1)))
-
     def _get_meta_data(self, url):
-        page = self._load_url(url)
+        req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        page = urlopen(req).read().decode('utf-8')
         soup = BeautifulSoup(page, 'html.parser')
         meta_data = {}
         for meta in soup.findAll("meta"):
@@ -51,20 +46,20 @@ class GearbestParser:
             meta_data[name] = content
         return meta_data
 
-    @classmethod
-    def _load_url(cls, url):
-        req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        page = urlopen(req).read().decode('utf-8')
-        return page
-
 class CurrencyConverter:
     """A simple currency converter."""
     def __init__(self):
         self._conversion_list = {}
 
-    def set_conversion_list(self, conversion_list):
-        """Set the actual conversion_list."""
-        self._conversion_list = conversion_list
+    def update(self):
+        """Load the conversion array from Gearbest"""
+        url = "https://order.gearbest.com/data-cache/currency_huilv.js?v=" \
+              "{:%Y%m%d%H%M%S}".format(datetime.now())
+        req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        page = urlopen(req).read().decode('utf-8')
+        search_object = re.search("({[^}]*})", page, re.M|re.I)
+        if search_object:
+            self._conversion_list = json.loads(search_object.group(1))
 
     def is_supported_currency(self, currency):
         """Check if the currency is part of the conversion list."""
@@ -105,6 +100,7 @@ class GearbestItem:
 
         if self._override_currency is not None and \
            self._override_currency is not self._currency and \
+           self._converter is not None and \
            self._converter.is_supported_currency(self._override_currency):
             self._price = "{0:.2f}".format(
                 self._converter.convert(self._price, self._currency, self._override_currency))
