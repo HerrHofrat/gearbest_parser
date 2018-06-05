@@ -54,7 +54,7 @@ class CurrencyConverter:
     def update(self):
         """Load the conversion array from Gearbest"""
         try:
-            url = "https://www.gearbest.com/aexchange-rate?v=" \
+            url = "https://www.gearbest.com/exchange-rate?v=" \
                   "{:%Y%m%d%H%M%S}".format(datetime.now())
             req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             page = urlopen(req).read().decode('utf-8')
