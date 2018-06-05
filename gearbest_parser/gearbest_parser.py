@@ -53,13 +53,18 @@ class CurrencyConverter:
 
     def update(self):
         """Load the conversion array from Gearbest"""
-        url = "https://order.gearbest.com/data-cache/currency_huilv.js?v=" \
-              "{:%Y%m%d%H%M%S}".format(datetime.now())
-        req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        page = urlopen(req).read().decode('utf-8')
-        search_object = re.search("({[^}]*})", page, re.M|re.I)
-        if search_object:
-            self._conversion_list = json.loads(search_object.group(1))
+        try:
+            url = "https://www.gearbest.com/aexchange-rate?v=" \
+                  "{:%Y%m%d%H%M%S}".format(datetime.now())
+            req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            page = urlopen(req).read().decode('utf-8')
+            search_object = re.search(r"(\[[^\]]*\])", page, re.M|re.I)
+            data = json.loads(search_object.group(1))
+            for element in data:
+                self._conversion_list[element['currencyCode']] = element['currencyRate']
+        except:
+            self._conversion_list = {}
+
 
     def is_supported_currency(self, currency):
         """Check if the currency is part of the conversion list."""
@@ -70,6 +75,8 @@ class CurrencyConverter:
         if self.is_supported_currency(from_currency) and self.is_supported_currency(to_currency):
             return float(amount) / float(self._conversion_list.get(from_currency)) * \
                    float(self._conversion_list.get(to_currency))
+        else:
+            return 0
 
 class GearbestItem:
     """Representation of an item at Gearbest"""
